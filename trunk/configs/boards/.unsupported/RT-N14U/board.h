@@ -26,3 +26,6 @@
 #define BOARD_NUM_ETH_LEDS	0
 #define BOARD_HAS_EPHY_L1000	0
 #define BOARD_HAS_EPHY_W1000	0
+/* Настройка портов для P674: 1 WAN и 3 LAN */
+#define BOARD_WAN_PORT_ID    4
+#define BOARD_LAN_PORT_ID    0
