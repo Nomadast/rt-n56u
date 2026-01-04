@@ -27,7 +27,7 @@ jobs:
       matrix:
         include:
          - build_variant: "mt7620"
-         - targets: "RT-N14U"
+           targets: "RT-N14U"
     steps:
       - uses: actions/checkout@v2
       - name: Prepare environment
