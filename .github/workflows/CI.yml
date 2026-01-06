@@ -47,11 +47,12 @@ jobs:
           limit-access-to-actor: true
       - name: Start build
         run: |
-          cd trunk
-          mkdir -p ${images_dir}
-          make olddefconfig): for m in $targets; do make -C trunk/linux-3.4.x olddefconfig; fakeroot ./build_firmware_ci $m; \
-          if [ $? = 0 ]; then cp -f images/*.trx ${images_dir}/$m.trx; else exit 1; fi; \
-          ./clear_tree_simple >/dev/null 2>&1; done
+         cd trunk
+         targets="RT-N14U"
+         for m in $targets; do
+          make -C linux-3.4.x olddefconfig
+          fakeroot ./build_firmware_ci $m
+         done
       - name: Create archive
         if: ${{ github.event_name != 'release' && success() }}
         run: |
