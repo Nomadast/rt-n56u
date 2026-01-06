@@ -1,4 +1,5 @@
-/* RT-N14U board.h */
+#ifndef _BOARD_H_
+#define _BOARD_H_
 
 #define BOARD_PID		"RT-N14U"
 #define BOARD_NAME		"RT-N14U"
@@ -8,7 +9,7 @@
 #define BOARD_MODEL_URL		"http://www.asus.com/Networking/RTN14U/"
 #define BOARD_CHIP_ID		"MT7620"
 
-/* GPIO (светодиоды) */
+/* GPIO (Ваши индикаторы) */
 #define BOARD_GPIO_LED_INET     0
 #define BOARD_GPIO_LED_POWER    4
 #define BOARD_GPIO_LED_LAN      1
@@ -18,7 +19,7 @@
 #define BOARD_GPIO_BTN_RESET    1
 #define BOARD_GPIO_BTN_WPS      2
 
-/* Антенны (Критично для исправления вашей ошибки!) */
+/* Антенны (То, на чем упала сборка!) */
 #define BOARD_HAS_5G_11AC       0
 #define BOARD_NUM_ANT           2
 #define BOARD_NUM_ANT_2G_TX     2
@@ -26,13 +27,13 @@
 #define BOARD_NUM_ANT_5G_TX     0
 #define BOARD_NUM_ANT_5G_RX     0
 
-/* Сетевые параметры */
+/* Сетевые настройки */
 #define BOARD_NUM_ETH_LEDS      0
 #define BOARD_HAS_EPHY_LNK_LED  1
 #define BOARD_HAS_EPHY_WPD      1
 #define BOARD_HAS_EPHY_L1000    0
 #define BOARD_HAS_EPHY_W1000    0
-
-/* Внутренняя разводка свитча */
 #define BOARD_LAN_PORT_COUNT    4
 #define BOARD_WAN_PORT_ID       4
+
+#endif
