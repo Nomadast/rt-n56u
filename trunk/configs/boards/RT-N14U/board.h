@@ -18,17 +18,21 @@
 #define BOARD_GPIO_BTN_RESET    1
 #define BOARD_GPIO_BTN_WPS      2
 
-/* Физика портов (Критично для пинга!) */
+/* Антенны (Критично для исправления вашей ошибки!) */
 #define BOARD_HAS_5G_11AC       0
 #define BOARD_NUM_ANT           2
+#define BOARD_NUM_ANT_2G_TX     2
+#define BOARD_NUM_ANT_2G_RX     2
+#define BOARD_NUM_ANT_5G_TX     0
+#define BOARD_NUM_ANT_5G_RX     0
+
+/* Сетевые параметры */
 #define BOARD_NUM_ETH_LEDS      0
 #define BOARD_HAS_EPHY_LNK_LED  1
 #define BOARD_HAS_EPHY_WPD      1
-
-/* Настройка коммутатора для 100-мегабитных портов */
 #define BOARD_HAS_EPHY_L1000    0
 #define BOARD_HAS_EPHY_W1000    0
 
-/* Принудительная схема портов: 4 LAN + 1 WAN внутри MT7620 */
+/* Внутренняя разводка свитча */
 #define BOARD_LAN_PORT_COUNT    4
 #define BOARD_WAN_PORT_ID       4
