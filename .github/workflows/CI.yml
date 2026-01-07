@@ -48,15 +48,25 @@ jobs:
       - name: Start build
         run: |
          cd trunk
-         # 1. Принудительно чистим всё старое
+         # 1. Очистка и подготовка тулчейна
          make -C linux-3.4.x mrproper
         
-         # 2. Подсовываем ядру ваш конфиг (или стандартный для RT-N14U)
+         # 2. Копируем конфиг модели
          cp configs/boards/RT-N14U/kernel-3.4.x.config linux-3.4.x/.config
         
-         # 3. Запускаем ВСЮ сборку через "yes", чтобы она не задавала вопросов
-         # Это закроет проблему "Broken pipe" и "aborted!"
-         yes "" | fakeroot ./build_firmware_ci RT-N14U
+         # 3. ЭКСПЕРТНЫЙ БЛОК: Генерация заголовочных файлов конфигурации вручную
+         # Мы заставляем ядро подготовиться, отвечая на все вопросы автоматически
+         cd linux-3.4.x
+         yes "" | make oldconfig
+         # Создаем необходимые файлы, чтобы silentoldconfig не запускался снова
+         make prepare
+         make scripts
+         cd ..
+        
+         # 4. Запуск сборки прошивки с подавлением интерактивности
+         # Добавляем инъекцию переменной окружения
+         export KCONFIG_NOSILENTUPDATE=1
+         fakeroot ./build_firmware_ci RT-N14U
           done
       - name: Create archive
         if: ${{ github.event_name != 'release' && success() }}
