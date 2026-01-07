@@ -47,11 +47,17 @@ jobs:
           limit-access-to-actor: true
       - name: Start build
         run: |
-          cd trunk
-          targets="RT-N14U"
-          for m in $targets; do
-          # Мы заставляем всю сборку отвечать "Enter" на любые вопросы
-          yes "" | fakeroot ./build_firmware_ci $m
+         cd trunk
+         # 1. Готовим конфиг ядра, чтобы он не задавал вопросов
+         make -C linux-3.4.x RT-N14U_defconfig || cp configs/boards/RT-N14U/kernel-3.4.x.config linux-3.4.x/.config
+        
+         # 2. Применяем настройки по умолчанию (тихий режим)
+         cd linux-3.4.x
+         yes "" | make oldconfig
+         cd ..
+
+         # 3. Запускаем сборку прошивки
+         fakeroot ./build_firmware_ci RT-N14U
           done
       - name: Create archive
         if: ${{ github.event_name != 'release' && success() }}
