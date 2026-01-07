@@ -46,17 +46,17 @@ jobs:
         with:
           limit-access-to-actor: true
       - name: Start build
-      run: |
-        cd trunk
-        # 1. Принудительно чистим всё старое
-        make -C linux-3.4.x mrproper
+        run: |
+         cd trunk
+         # 1. Принудительно чистим всё старое
+         make -C linux-3.4.x mrproper
         
-        # 2. Подсовываем ядру ваш конфиг (или стандартный для RT-N14U)
-        cp configs/boards/RT-N14U/kernel-3.4.x.config linux-3.4.x/.config
+         # 2. Подсовываем ядру ваш конфиг (или стандартный для RT-N14U)
+         cp configs/boards/RT-N14U/kernel-3.4.x.config linux-3.4.x/.config
         
-        # 3. Запускаем ВСЮ сборку через "yes", чтобы она не задавала вопросов
-        # Это закроет проблему "Broken pipe" и "aborted!"
-        yes "" | fakeroot ./build_firmware_ci RT-N14U
+         # 3. Запускаем ВСЮ сборку через "yes", чтобы она не задавала вопросов
+         # Это закроет проблему "Broken pipe" и "aborted!"
+         yes "" | fakeroot ./build_firmware_ci RT-N14U
           done
       - name: Create archive
         if: ${{ github.event_name != 'release' && success() }}
