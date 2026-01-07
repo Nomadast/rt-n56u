@@ -48,16 +48,11 @@ jobs:
       - name: Start build
         run: |
           cd trunk
-          # 1. Принудительно копируем конфиг именно для RT-N14U в рабочую папку ядра
-          cp configs/boards/RT-N14U/kernel-3.4.x.config linux-3.4.x/.config
-        
-          # 2. Обновляем конфиг, автоматически выбирая ответы по умолчанию
-          # Используем современный способ для этого репозитория
-          make -C linux-3.4.x olddefconfig || (cd linux-3.4.x && yes "" | make oldconfig)
-        
-          # 3. Запускаем сборку, пропуская повторную проверку конфига
-          fakeroot ./build_firmware_ci RT-N14U
-           done
+          targets="RT-N14U"
+          for m in $targets; do
+          # Мы заставляем всю сборку отвечать "Enter" на любые вопросы
+          yes "" | fakeroot ./build_firmware_ci $m
+          done
       - name: Create archive
         if: ${{ github.event_name != 'release' && success() }}
         run: |
