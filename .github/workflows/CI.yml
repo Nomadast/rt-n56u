@@ -48,28 +48,31 @@ jobs:
       - name: Start build
         run: |
          cd trunk
-         # 1. Настройка путей к кросс-компилятору
+         # 1. Установка путей к кросс-компилятору
          TC_BIN="${{ github.workspace }}/toolchain-mipsel/toolchain-3.4.x/bin"
          export PATH="$TC_BIN:$PATH"
-         export ARCH=mips
+          export ARCH=mips
          export CROSS_COMPILE=mipsel-linux-uclibc-
         
          # 2. Подготовка дерева исходников
          make -C linux-3.4.x mrproper
          cp configs/boards/RT-N14U/kernel-3.4.x.config linux-3.4.x/.config
-         
+        
          # 3. ЭКСПЕРТНЫЙ ХАК: Принудительная генерация конфига
          cd linux-3.4.x
-         # Автоматически принимаем все дефолты (не задавая вопросов)
-         yes "" | make oldconfig
-         # Генерируем дерево include/config/auto.conf
+         # Автоматически принимаем все дефолты для новых символов
+         make olddefconfig || (yes "" | make oldconfig)
+         # Генерируем дерево зависимостей и заголовочные файлы
          make -j$(nproc) prepare
-         # Обновляем временные метки, чтобы основной скрипт считал файлы актуальными
+         # "Замораживаем" конфиг: обновляем даты, чтобы make не пытался их перепроверить
          touch .config include/config/auto.conf include/generated/autoconf.h
          cd ..
         
-         # 4. Запуск сборки всей прошивки
-         # KCONFIG_NOSILENTUPDATE=1 - это критический флаг, запрещающий ядру лезть в настройки
+         # 4. Смена IP адреса (опционально, сейчас стоит 192.168.1.1)
+         # Если хочешь сменить на 192.168.10.1, раскомментируй строку ниже:
+         # sed -i 's/192.168.1.1/192.168.10.1/g' user/shared/defaults.c configs/boards/RT-N14U/board.h
+        
+         # 5. Финальный запуск сборки всей прошивки
          export KCONFIG_NOSILENTUPDATE=1
          fakeroot ./build_firmware_ci RT-N14U
           done
