@@ -50,28 +50,30 @@ jobs:
          cd trunk
          # 1. Жесткая привязка путей к кросс-компилятору
          TC_BIN="${{ github.workspace }}/toolchain-mipsel/toolchain-3.4.x/bin"
-          export PATH="$TC_BIN:$PATH"
-          export ARCH=mips
-          export CROSS_COMPILE=mipsel-linux-uclibc-
+         export PATH="$TC_BIN:$PATH"
+         export ARCH=mips
+         export CROSS_COMPILE=mipsel-linux-uclibc-
         
-          # 2. Очистка и подстановка конфига модели RT-N14U
-          make -C linux-3.4.x mrproper
-          cp configs/boards/RT-N14U/kernel-3.4.x.config linux-3.4.x/.config
+         # 2. Очистка и подстановка конфига модели
+         make -C linux-3.4.x mrproper
+         cp configs/boards/RT-N14U/kernel-3.4.x.config linux-3.4.x/.config
         
-          # 3. ЭКСПЕРТНЫЙ ХАК: Генерация файлов конфигурации без вопросов
-           cd linux-3.4.x
-          # Автоматически принимаем дефолты для всех новых опций
-          make olddefconfig
-          # Генерируем дерево зависимостей, которое требовал лог (auto.conf)
-          make prepare
-          # Обновляем временные метки, чтобы 'make' считал конфиг свежим
-          touch .config include/config/auto.conf include/generated/autoconf.h
-          cd ..
+         # 3. ЭКСПЕРТНЫЙ ХАК: Генерация зависимостей для ядра 3.4
+         cd linux-3.4.x
+         # Автоматически принимаем дефолты (Enter) на все вопросы
+         yes "" | make oldconfig
+         # Принудительно создаем дерево include/config/
+         make -j$(nproc) silentoldconfig || true
+         # Генерируем остальные необходимые файлы
+         make -j$(nproc) prepare
         
-          # 4. Запуск сборки всей прошивки
-          # KCONFIG_NOSILENTUPDATE=1 - запрещает ядру пытаться обновиться в тихом режиме
-          export KCONFIG_NOSILENTUPDATE=1
-          fakeroot ./build_firmware_ci RT-N14U
+         # "Замораживаем" файлы, чтобы основной скрипт не пытался их пересобрать
+         touch .config include/config/auto.conf
+         cd ..
+        
+         # 4. Запуск сборки всей прошивки
+         export KCONFIG_NOSILENTUPDATE=1
+         fakeroot ./build_firmware_ci RT-N14U
           done
       - name: Create archive
         if: ${{ github.event_name != 'release' && success() }}
