@@ -48,28 +48,27 @@ jobs:
       - name: Start build
         run: |
           cd trunk
-          # 1. Настройка путей компилятора
-          TC_PATH="/home/runner/work/rt-n56u/rt-n56u/toolchain-mipsel/toolchain-3.4.x/bin"
-           export PATH="$TC_PATH:$PATH"
-           export ARCH=mips
-           export CROSS_COMPILE=mipsel-linux-uclibc-
+          # 1. Жесткая привязка путей к компилятору
+          TC_BIN="/home/runner/work/rt-n56u/rt-n56u/toolchain-mipsel/toolchain-3.4.x/bin"
+          export PATH="$TC_BIN:$PATH"
         
-           # 2. Очистка и принудительная установка конфига модели
+           # 2. Подготовка конфига
            make -C linux-3.4.x mrproper
            cp configs/boards/RT-N14U/kernel-3.4.x.config linux-3.4.x/.config
         
-           # 3. ЭКСПЕРТНЫЙ ХАК: Полная генерация дерева сборки
-           # Мы создаем auto.conf и другие файлы, чтобы обмануть silentoldconfig
+           # 3. ЭКСПЕРТНЫЙ ХАК: Генерируем конфиг и "замораживаем" его
+           # Мы просим ядро принять все дефолты и сразу подготовить заголовочные файлы
            cd linux-3.4.x
            yes "" | make oldconfig
-           make -j$(nproc) prepare
-           # Фиксируем дату изменения файлов, чтобы система считала их актуальными
+            make ARCH=mips CROSS_COMPILE=mipsel-linux-uclibc- -j$(nproc) prepare
+        
+           # Обманываем систему сборки: делаем вид, что файлы созданы только что
            touch .config include/config/auto.conf
            cd ..
         
-           # 4. Запуск основной сборки с флагом игнорирования обновления конфига
-           export KCONFIG_NOSILENTUPDATE=1
-           fakeroot ./build_firmware_ci RT-N14U
+          # 4. Запуск сборки всей прошивки
+           # Добавляем флаги напрямую в вызов, чтобы подавить проверку конфига
+           KCONFIG_NOSILENTUPDATE=1 fakeroot ./build_firmware_ci RT-N14U
           done
       - name: Create archive
         if: ${{ github.event_name != 'release' && success() }}
