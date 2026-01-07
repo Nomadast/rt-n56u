@@ -46,25 +46,17 @@ jobs:
         with:
           limit-access-to-actor: true
       - name: Start build
-        run: |
-          # 1. Заходим в папку с прошивкой
-          cd trunk
+      run: |
+        cd trunk
+        # 1. Принудительно чистим всё старое
+        make -C linux-3.4.x mrproper
         
-           # 2. Подготавливаем тулчейн (компилятор)
-           # В проекте hanwckf он обычно качается скриптом
-           cd ../toolchain-mipsel && sh dl_toolchain.sh && cd ../trunk
-
-            # 3. Чистим и выбираем конфиг (как советовал конкурент, но автоматизировано)
-            make -C linux-3.4.x mrproper
+        # 2. Подсовываем ядру ваш конфиг (или стандартный для RT-N14U)
+        cp configs/boards/RT-N14U/kernel-3.4.x.config linux-3.4.x/.config
         
-             # Копируем твой конфиг (который ты скинул выше) в ядро
-             cp configs/boards/RT-N14U/kernel-3.4.x.config linux-3.4.x/.config
-        
-             # 4. Пропускаем вопросы (вместо silentoldconfig используем автоответчик)
-             yes "" | make -C linux-3.4.x oldconfig
-        
-             # 5. Запускаем сборку всей прошивки (это создаст .trx файл)
-             fakeroot ./build_firmware_ci RT-N14U
+        # 3. Запускаем ВСЮ сборку через "yes", чтобы она не задавала вопросов
+        # Это закроет проблему "Broken pipe" и "aborted!"
+        yes "" | fakeroot ./build_firmware_ci RT-N14U
           done
       - name: Create archive
         if: ${{ github.event_name != 'release' && success() }}
