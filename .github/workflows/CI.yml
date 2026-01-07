@@ -50,7 +50,7 @@ jobs:
          cd trunk
          targets="RT-N14U"
          for m in $targets; do
-          make -C linux-3.4.x olddefconfig
+          cd trunk/linux-3.4.x && yes "" | make oldconfig && cd ../..
           fakeroot ./build_firmware_ci $m
          done
       - name: Create archive
