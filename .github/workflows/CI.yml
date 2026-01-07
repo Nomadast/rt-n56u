@@ -47,23 +47,14 @@ jobs:
           limit-access-to-actor: true
       - name: Start build
         run: |
-         cd trunk
-         # 1. Записываем ваш конфиг прямо в файл
-         cat <<EOT > linux-3.4.x/.config
-         $(cat <<'EOF'
-         # Здесь ваш текст конфигурации...
-         CONFIG_MIPS=y
-         CONFIG_SOC_MT7620=y
-         CONFIG_RALINK_MT7620=y
-# ... и все остальные строки, что вы прислали
-EOF
-)
-EOT
-        # 2. Дозаполняем остальные тысячи параметров значениями по умолчанию
-        cd linux-3.4.x && yes "" | make oldconfig && cd ..
-        
-        # 3. Запускаем сборку
-        fakeroot ./build_firmware_ci RT-N14U
+          cd trunk
+
+          # 1. Применяем defconfig (НЕИНТЕРАКТИВНО)
+          make -C linux-3.4.x RT-N14U_defconfig
+          make -C linux-3.4.x olddefconfig
+
+          # 2. Запускаем сборку прошивки
+          fakeroot ./build_firmware_ci RT-N14U
           done
       - name: Create archive
         if: ${{ github.event_name != 'release' && success() }}
