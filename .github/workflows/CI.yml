@@ -48,31 +48,32 @@ jobs:
       - name: Start build
         run: |
           cd trunk
-          # 1. Установка путей к кросс-компилятору
+
+          # 1. Кросс-компилятор
           TC_BIN="${{ github.workspace }}/toolchain-mipsel/toolchain-3.4.x/bin"
           export PATH="$TC_BIN:$PATH"
           export ARCH=mips
           export CROSS_COMPILE=mipsel-linux-uclibc-
 
-          # 2. АВТОМАТИЧЕСКАЯ НАСТРОЙКА IP (если нужно сменить 192.168.1.1)
-          # Чтобы сменить на 192.168.10.1, просто удалите символ '#' ниже:
-          # sed -i 's/192.168.1.1/192.168.10.1/g' user/shared/defaults.c configs/boards/RT-N14U/board.h
-
-          # 3. ПОДГОТОВКА ЯДРА (Решение ошибки 2959)
-          cp configs/boards/RT-N14U/kernel-3.4.x.config linux-3.4.x/.config
+          # 2. Подготовка ядра
           cd linux-3.4.x
-          # Команда 'yes ""' автоматически нажимает Enter на все новые вопросы ядра
+          make mrproper
+
+          cp ../configs/boards/RT-N14U/kernel-3.4.x.config .config
+
+          # Автоматический oldconfig (CI-safe)
           yes "" | make oldconfig
-          # Генерируем auto.conf вручную, чтобы скрипт сборки не пытался это сделать сам
-          make -j$(nproc) prepare
-          # "Замораживаем" файлы конфигурации, чтобы make считал их актуальными
-          touch .config include/config/auto.conf include/generated/autoconf.h
+
+          # Генерация конфигурационных заголовков
+          make prepare
+          make scripts
+
           cd ..
 
-          # 4. ЗАПУСК ОСНОВНОЙ СБОРКИ
-          # Флаг KCONFIG_NOSILENTUPDATE=1 запрещает ядру заново проверять конфиг
+          # 3. Запуск сборки прошивки
           export KCONFIG_NOSILENTUPDATE=1
           fakeroot ./build_firmware_ci RT-N14U
+
           done
       - name: Create archive
         if: ${{ github.event_name != 'release' && success() }}
