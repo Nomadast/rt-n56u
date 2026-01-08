@@ -1,89 +1,109 @@
-name: CI
+name: Build RT-N14U Firmware
 
-# Controls when the action will run. 
-on: 
+on:
   push:
   pull_request:
   workflow_dispatch:
     inputs:
       debug_enabled:
-        description: 'Run the build with tmate debugging enabled (https://github.com/marketplace/actions/debugging-with-tmate)'     
+        description: 'Run the build with tmate debugging enabled'
         required: false
         default: 'no'
   release:
     types: [published]
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   build:
-    name: build
+    name: Build RT-N14U
     runs-on: ubuntu-latest
-    if: ${{ !(github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) }}
-    env:
-      build_variant: ${{ matrix.build_variant }}
-      targets: ${{ matrix.targets }}
-      images_dir: /opt/images
+
     strategy:
       matrix:
         include:
-         - build_variant: "mt7620"
-           targets: "RT-N14U"
+          - build_variant: "mt7620"
+            target: "RT-N14U"
+
     steps:
+      # 1️⃣ Клонируем репозиторий
       - uses: actions/checkout@v4
-      - name: Prepare environment
+
+      # 2️⃣ Устанавливаем зависимости для сборки ядра
+      - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install libtool-bin gperf python3-docutils autopoint gettext
+          sudo apt install -y build-essential libtool-bin gperf python3-docutils autopoint gettext bc bison flex
+
+      # 3️⃣ Запуск ShellCheck для скриптов (по вашему workflow)
       - name: Run shellcheck
         run: sh ./trunk/tools/shellcheck.sh
+
+      # 4️⃣ Подготовка toolchain
       - name: Prepare toolchain
         run: |
           cd toolchain-mipsel
           sh dl_toolchain.sh
+
+      # 5️⃣ Настройка tmate для интерактивного дебага (по желанию)
       - name: Setup tmate session
         uses: mxschmitt/action-tmate@v3
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'yes' }}
         with:
           limit-access-to-actor: true
-      - name: Start build
+
+      # 6️⃣ Подготовка ядра и конфигурации
+      - name: Prepare kernel
+        run: |
+          cd trunk/linux-3.4.x
+          # Копируем готовый .config (наш полностью рабочий вариант)
+          cp ../../configs/boards/RT-N14U/kernel-3.4.x.config .config
+          
+          # Обновляем конфигурацию без интерактивного ввода
+          export KCONFIG_NOSILENTUPDATE=1
+          yes "" | make oldconfig
+          
+          # Генерируем заголовочные файлы и дерево зависимостей
+          make -j$(nproc) prepare
+          
+          # Возвращаемся в корень
+          cd ../..
+
+      # 7️⃣ Основная сборка прошивки
+      - name: Build firmware
         run: |
           cd trunk
-          # 1. Настройка путей к Toolchain
+          # Настройка toolchain в PATH
           TC_BIN="${{ github.workspace }}/toolchain-mipsel/toolchain-3.4.x/bin"
           export PATH="$TC_BIN:$PATH"
           export ARCH=mips
           export CROSS_COMPILE=mipsel-linux-uclibc-
-
-          # 2. МЕНЯЕМ IP АДРЕС (Например, на 192.168.10.1)
-          # Эта строка найдет старый IP и заменит его на новый везде
+          
+          # Меняем IP (по вашему workflow)
           find ./ -type f -name "*" -print0 | xargs -0 sed -i 's/192.168.1.1/192.168.10.1/g'
-
-          # 3. ПОДГОТОВКА ЯДРА (Решаем ошибку 2959)
-          cp configs/boards/RT-N14U/kernel-3.4.x.config linux-3.4.x/.config
-          cd linux-3.4.x
-          # Автоматически жмем Enter на все новые вопросы
-          yes "" | make oldconfig
-          # Генерируем заголовочные файлы и дерево зависимостей
-          make -j$(nproc) prepare
-          # "Замораживаем" файлы, чтобы основной скрипт их не трогал
-          touch .config include/config/auto.conf include/generated/autoconf.h
-          cd ..
-
-          # 4. ЗАПУСК ОСНОВНОЙ СБОРКИ
-          export KCONFIG_NOSILENTUPDATE=1
+          
+          # Запуск сборки прошивки
           fakeroot ./build_firmware_ci RT-N14U
 
+      # 8️⃣ Создаём архив прошивки
       - name: Create archive
         if: ${{ github.event_name != 'release' && success() }}
         run: |
+          images_dir=/opt/images
           ls -lh ${images_dir}
-          GIT_VERSION=`git rev-parse --short=7 HEAD 2>/dev/null` && [ -n "$GIT_VERSION" ] && \
-          image_name=images_${build_variant}_${GIT_VERSION} || image_name=images_${build_variant}
-          cd ${images_dir}; md5sum *.trx |tee md5sum.txt; 7z a -mx=9 ${image_name}.7z ./*
+          GIT_VERSION=$(git rev-parse --short=7 HEAD 2>/dev/null)
+          if [ -n "$GIT_VERSION" ]; then
+            image_name=images_${{ matrix.build_variant }}_${GIT_VERSION}
+          else
+            image_name=images_${{ matrix.build_variant }}
+          fi
+          cd ${images_dir}
+          md5sum *.trx | tee md5sum.txt
+          7z a -mx=9 ${image_name}.7z ./*
           echo "image_name=${image_name}" >> $GITHUB_ENV
-      - name: Upload images to Artifact
+
+      # 9️⃣ Загружаем артефакты
+      - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Padavan-Firmware-Files
-          path: /opt/images/         
+          path: /opt/images/
