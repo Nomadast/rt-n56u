@@ -50,7 +50,7 @@ jobs:
         with:
           limit-access-to-actor: true
 
-      # 6️⃣ Проверка .config
+      # 6️⃣ Проверка и копирование .config
       - name: Check kernel config
         run: |
           cd trunk/linux-3.4.x
@@ -81,7 +81,7 @@ jobs:
           export CROSS_COMPILE=mipsel-linux-uclibc-
           export KCONFIG_NOSILENTUPDATE=1
 
-          # Обновляем конфигурацию ядра без интерактивного ввода
+          # Автоматически отвечаем на все вопросы oldconfig
           yes "" | make oldconfig
 
           # Генерируем заголовки и дерево зависимостей
@@ -137,4 +137,3 @@ jobs:
         with:
           name: Padavan-Firmware-Files
           path: /opt/images/
-
