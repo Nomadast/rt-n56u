@@ -1,4 +1,4 @@
-name: Build RT-N14U Firmware
+name: CI
 
 on:
   push:
@@ -14,7 +14,7 @@ on:
 
 jobs:
   build:
-    name: Build RT-N14U
+    name: Build RT-N14U Firmware
     runs-on: ubuntu-latest
 
     strategy:
@@ -27,13 +27,13 @@ jobs:
       # 1️⃣ Клонируем репозиторий
       - uses: actions/checkout@v4
 
-      # 2️⃣ Устанавливаем зависимости для сборки ядра
+      # 2️⃣ Устанавливаем зависимости
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y build-essential libtool-bin gperf python3-docutils autopoint gettext bc bison flex
+          sudo apt install -y build-essential libtool-bin gperf python3-docutils autopoint gettext bc bison flex p7zip-full
 
-      # 3️⃣ Запуск ShellCheck для скриптов (по вашему workflow)
+      # 3️⃣ Проверка скриптов (по вашему workflow)
       - name: Run shellcheck
         run: sh ./trunk/tools/shellcheck.sh
 
@@ -43,7 +43,7 @@ jobs:
           cd toolchain-mipsel
           sh dl_toolchain.sh
 
-      # 5️⃣ Настройка tmate для интерактивного дебага (по желанию)
+      # 5️⃣ Настройка tmate (опционально)
       - name: Setup tmate session
         uses: mxschmitt/action-tmate@v3
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'yes' }}
@@ -54,17 +54,13 @@ jobs:
       - name: Prepare kernel
         run: |
           cd trunk/linux-3.4.x
-          # Копируем готовый .config (наш полностью рабочий вариант)
-          cp ../../configs/boards/RT-N14U/kernel-3.4.x.config .config
-          
-          # Обновляем конфигурацию без интерактивного ввода
+          # Копируем готовый .config из configs/boards
+          cp ../configs/boards/RT-N14U/kernel-3.4.x.config .config
+
+          # Обновляем конфигурацию ядра
           export KCONFIG_NOSILENTUPDATE=1
           yes "" | make oldconfig
-          
-          # Генерируем заголовочные файлы и дерево зависимостей
           make -j$(nproc) prepare
-          
-          # Возвращаемся в корень
           cd ../..
 
       # 7️⃣ Основная сборка прошивки
@@ -75,35 +71,4 @@ jobs:
           TC_BIN="${{ github.workspace }}/toolchain-mipsel/toolchain-3.4.x/bin"
           export PATH="$TC_BIN:$PATH"
           export ARCH=mips
-          export CROSS_COMPILE=mipsel-linux-uclibc-
-          
-          # Меняем IP (по вашему workflow)
-          find ./ -type f -name "*" -print0 | xargs -0 sed -i 's/192.168.1.1/192.168.10.1/g'
-          
-          # Запуск сборки прошивки
-          fakeroot ./build_firmware_ci RT-N14U
-
-      # 8️⃣ Создаём архив прошивки
-      - name: Create archive
-        if: ${{ github.event_name != 'release' && success() }}
-        run: |
-          images_dir=/opt/images
-          ls -lh ${images_dir}
-          GIT_VERSION=$(git rev-parse --short=7 HEAD 2>/dev/null)
-          if [ -n "$GIT_VERSION" ]; then
-            image_name=images_${{ matrix.build_variant }}_${GIT_VERSION}
-          else
-            image_name=images_${{ matrix.build_variant }}
-          fi
-          cd ${images_dir}
-          md5sum *.trx | tee md5sum.txt
-          7z a -mx=9 ${image_name}.7z ./*
-          echo "image_name=${image_name}" >> $GITHUB_ENV
-
-      # 9️⃣ Загружаем артефакты
-      - name: Upload artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: Padavan-Firmware-Files
-          path: /opt/images/
+          export CROSS_COMPILE=mipsel-linu_
