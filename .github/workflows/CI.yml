@@ -81,13 +81,13 @@ jobs:
           export CROSS_COMPILE=mipsel-linux-uclibc-
           export KCONFIG_NOSILENTUPDATE=1
 
-          # Автоматически отвечаем на все вопросы oldconfig
+          # Автоматическое обновление конфигурации
           yes "" | make oldconfig
 
-          # Генерируем заголовки и дерево зависимостей
+          # Генерация заголовков и дерева зависимостей
           make -j$(nproc) prepare
 
-          # Создаём недостающие файлы, чтобы Makefile не падал
+          # Создаём недостающие файлы конфигурации
           touch .config include/config/auto.conf include/generated/autoconf.h
 
           # Проверяем auto.conf
