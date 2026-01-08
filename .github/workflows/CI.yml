@@ -74,7 +74,6 @@ jobs:
           export KCONFIG_NOSILENTUPDATE=1
           fakeroot ./build_firmware_ci RT-N14U
 
-          done
       - name: Create archive
         if: ${{ github.event_name != 'release' && success() }}
         run: |
