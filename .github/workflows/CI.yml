@@ -27,4 +27,114 @@ jobs:
       # 1️⃣ Клонируем репозиторий
       - uses: actions/checkout@v4
 
-      # 2️⃣ Устанавл
+      # 2️⃣ Устанавливаем зависимости
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential libtool-bin gperf python3-docutils autopoint gettext bc bison flex p7zip-full
+
+      # 3️⃣ Проверка скриптов
+      - name: Run shellcheck
+        run: sh ./trunk/tools/shellcheck.sh
+
+      # 4️⃣ Подготовка toolchain
+      - name: Prepare toolchain
+        run: |
+          cd toolchain-mipsel
+          sh dl_toolchain.sh
+
+      # 5️⃣ Настройка tmate (опционально)
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'yes' }}
+        with:
+          limit-access-to-actor: true
+
+      # 6️⃣ Проверка .config
+      - name: Check kernel config
+        run: |
+          cd trunk/linux-3.4.x
+          if [ -f ../configs/boards/RT-N14U/kernel-3.4.x.config ]; then
+            echo ".config exists ✅"
+            cp ../configs/boards/RT-N14U/kernel-3.4.x.config .config
+          else
+            echo "ERROR: kernel-3.4.x.config missing ❌"
+            ls -l ../configs/boards/RT-N14U/
+            exit 1
+          fi
+          cd ../..
+
+      # 7️⃣ Проверка toolchain MIPS
+      - name: Check MIPS toolchain
+        run: |
+          export PATH="${{ github.workspace }}/toolchain-mipsel/toolchain-3.4.x/bin:$PATH"
+          export CROSS_COMPILE=mipsel-linux-uclibc-
+          which ${CROSS_COMPILE}gcc
+          ${CROSS_COMPILE}gcc -v
+
+      # 8️⃣ Подготовка ядра и генерация заголовков
+      - name: Prepare kernel
+        run: |
+          cd trunk/linux-3.4.x
+          export PATH="${{ github.workspace }}/toolchain-mipsel/toolchain-3.4.x/bin:$PATH"
+          export ARCH=mips
+          export CROSS_COMPILE=mipsel-linux-uclibc-
+          export KCONFIG_NOSILENTUPDATE=1
+
+          # Обновляем конфигурацию ядра без интерактивного ввода
+          yes "" | make oldconfig
+
+          # Генерируем заголовки и дерево зависимостей
+          make -j$(nproc) prepare
+
+          # Создаём недостающие файлы, чтобы Makefile не падал
+          touch .config include/config/auto.conf include/generated/autoconf.h
+
+          # Проверяем auto.conf
+          if [ ! -f include/config/auto.conf ]; then
+            echo "ERROR: include/config/auto.conf not created ❌"
+            exit 1
+          else
+            echo "include/config/auto.conf exists ✅"
+          fi
+          cd ../..
+
+      # 9️⃣ Сборка прошивки
+      - name: Build firmware
+        run: |
+          cd trunk
+          export PATH="${{ github.workspace }}/toolchain-mipsel/toolchain-3.4.x/bin:$PATH"
+          export ARCH=mips
+          export CROSS_COMPILE=mipsel-linux-uclibc-
+
+          # Меняем IP (опционально)
+          find ./ -type f -name "*" -print0 | xargs -0 sed -i 's/192.168.1.1/192.168.10.1/g'
+
+          # Запуск сборки прошивки
+          fakeroot ./build_firmware_ci RT-N14U
+
+      # 🔟 Создаём архив прошивки
+      - name: Create archive
+        if: ${{ github.event_name != 'release' && success() }}
+        run: |
+          images_dir=/opt/images
+          ls -lh ${images_dir}
+          GIT_VERSION=$(git rev-parse --short=7 HEAD 2>/dev/null)
+          if [ -n "$GIT_VERSION" ]; then
+            image_name=images_${{ matrix.build_variant }}_${GIT_VERSION}
+          else
+            image_name=images_${{ matrix.build_variant }}
+          fi
+          cd ${images_dir}
+          md5sum *.trx | tee md5sum.txt
+          7z a -mx=9 ${image_name}.7z ./*
+          echo "image_name=${image_name}" >> $GITHUB_ENV
+
+      # 1️⃣1️⃣ Загружаем артефакты
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Padavan-Firmware-Files
+          path: /opt/images/
+
